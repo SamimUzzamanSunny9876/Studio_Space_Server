@@ -10,7 +10,7 @@ const PORT = 8000
 app.use(cors())
 app.use(express.json())
 
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const client = new MongoClient(process.env.MONGODB_URI);
 
@@ -31,7 +31,7 @@ const studioCollection = db.collection('studios')
 
 
 
-//http://localhost:8000/studios
+//http://localhost:8000/studios/${id}
 
 
 app.get('/', (req, res) =>{ 
@@ -44,12 +44,34 @@ app.get('/studios', async (req,res)=> {
     res.send(result)
 })
 
+app.get('/studios/:id' , async(req, res) => {
+    const {id} = req.params
+    const result = await studioCollection.findOne({_id: new ObjectId(id)})
+
+    res.send(result)
+})
+
 app.post('/add-studio' , async (req, res)=>{
     const data = req.body
     const result = await studioCollection.insertOne(data)
     
     console.log(result);
     res.send(result)
+})
+
+app.put('/studios/:id', async(req, res) => {
+    const {id} =  req.params 
+    const data = req.body
+
+    const result = await studioCollection.updateOne({_id: new ObjectId(id)},{$set: data})
+    res.json(result)
+})
+
+app.delete('/studios/:id', async (req, res) => {
+    const {id}  =  req.params
+    const result = await studioCollection.deleteOne({_id: new ObjectId(id)})
+
+    res.json(result)
 })
 
 app.listen(PORT, ()=>{
