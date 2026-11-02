@@ -11,6 +11,7 @@ app.use(cors())
 app.use(express.json())
 
 import { MongoClient, ObjectId } from 'mongodb';
+import { createRemoteJWKSet, jwtVerify } from 'jose'
 
 const client = new MongoClient(process.env.MONGODB_URI);
 
@@ -30,6 +31,34 @@ const db = mongoClient.db('studio-space')
 const studioCollection = db.collection('studios')
 const bookingsCollection = db.collection('booking')
 
+const verifyToken = async (req, res, next)=> {
+   
+    const authHeader = req.headers.authorization
+    console.log(authHeader);
+
+    if(!authHeader)
+    {
+        return res.status(401).send({msg: "Unauthorized user"})
+    }
+
+    const token = authHeader.split(" ")[1] 
+    if(!token){
+        return res.status(401).send({msg: "Unauthorized user"})
+    }
+
+    const JWKS = createRemoteJWKSet(
+      new URL('http://localhost:3000/api/auth/jwks')
+    )
+    const {payload } = await jwtVerify(token, JWKS)
+
+    console.log(payload);
+
+    
+
+    next();
+
+}
+
 
 
 //http://localhost:8000/my-bookings/${email}
@@ -44,8 +73,8 @@ app.get('/studios', async (req,res)=> {
 
     res.send(result)
 })
-
-app.get('/studios/:id' , async(req, res) => {
+// details page api 
+app.get('/studios/:id', verifyToken , async(req, res) => {
     const {id} = req.params
     const result = await studioCollection.findOne({_id: new ObjectId(id)})
 
@@ -56,6 +85,16 @@ app.get('/my-bookings/:email', async (req, res) => {
     const { email } = req.params;
     const result = await bookingsCollection.find({ userEmail: email }).toArray();
     res.send(result);
+});
+//owner listing
+app.get('/my-studios/:email', async (req, res) => {
+    try {
+        const { email } = req.params;
+        const result = await studioCollection.find({ hostEmail: email }).sort({ _id: -1 }).toArray();
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch user listings' });
+    }
 });
 
 //booking cancel 
