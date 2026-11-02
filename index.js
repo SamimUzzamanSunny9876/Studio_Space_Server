@@ -28,10 +28,11 @@ export async function connectToMongoDB() {
 const mongoClient = await connectToMongoDB()
 const db = mongoClient.db('studio-space')
 const studioCollection = db.collection('studios')
+const bookingsCollection = db.collection('booking')
 
 
 
-//http://localhost:8000/studios/${id}
+//http://localhost:8000/my-bookings/${email}
 
 
 app.get('/', (req, res) =>{ 
@@ -51,11 +52,49 @@ app.get('/studios/:id' , async(req, res) => {
     res.send(result)
 })
 
+app.get('/my-bookings/:email', async (req, res) => {
+    const { email } = req.params;
+    const result = await bookingsCollection.find({ userEmail: email }).toArray();
+    res.send(result);
+});
+
+//booking cancel 
+app.patch('/bookings/:id/cancel', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await bookingsCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: { status: 'Cancelled' } }
+        );
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to cancel booking' });
+    }
+});
+
+// Remove a booking from history
+app.delete('/bookings/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await bookingsCollection.deleteOne({ _id: new ObjectId(id) });
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete booking' });
+    }
+});
 app.post('/add-studio' , async (req, res)=>{
     const data = req.body
     const result = await studioCollection.insertOne(data)
     
     console.log(result);
+    res.send(result)
+})
+
+app.post('/bookings', async(req, res)=> {
+    const data = req.body;
+
+    const result = await bookingsCollection.insertOne(data);
+
     res.send(result)
 })
 
